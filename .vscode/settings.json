@@ -1,0 +1,14 @@
+{
+    "cSpell.words": [
+        "archivo",
+        "Crear",
+        "Guardar",
+        "Histórico",
+        "Procesar",
+        "UNIDAD"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingTypeStubs": "none"
+    },
+
+}
