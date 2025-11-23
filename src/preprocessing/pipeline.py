@@ -1,9 +1,11 @@
+from typing import Dict, List, Optional, Tuple, Union
+
+import joblib  # type: ignore
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.pipeline import Pipeline
-import joblib  # type: ignore
-from typing import Union, Tuple, Optional, List, Dict
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+
 
 # Clase DataProcessor
 class DataProcessor:
@@ -55,7 +57,10 @@ class DataLoader(BaseEstimator, TransformerMixin):
         self.date_col: str = date_col
         self.delimiter: str = delimiter
         self.date_format: str = date_format
-        self.data_processor: DataProcessor = DataProcessor(delimiter=delimiter, date_format=date_format)
+        self.data_processor: DataProcessor = DataProcessor(
+            delimiter=delimiter,
+            date_format=date_format
+        )
         self.df_original: Optional[pd.DataFrame] = None
 
     def fit(self, X: Union[str, pd.DataFrame], y: None = None) -> "DataLoader":
@@ -93,7 +98,8 @@ class NominalSpeedIdentifier(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Identifica la velocidad nominal y calcula los valores máximos de variables en bloques estables."""
+        """Identifica la velocidad nominal y calcula los valores máximos de variables
+        en bloques estables."""
         if not isinstance(X, pd.DataFrame):
             raise ValueError("X debe ser un DataFrame.")
 
@@ -106,14 +112,24 @@ class NominalSpeedIdentifier(BaseEstimator, TransformerMixin):
         if stable_blocks.empty or stable_blocks.max() < self.min_stable_points:
             raise ValueError("No se encontró una región estable suficientemente larga.")
 
-        stable_blocks_sorted: pd.Series = stable_blocks[stable_blocks >= self.min_stable_points].sort_values(ascending=False)
-        top_blocks: pd.Index = stable_blocks_sorted.head(min(self.top_n_blocks, len(stable_blocks_sorted))).index
+        stable_blocks_sorted: pd.Series = stable_blocks[
+            stable_blocks >= self.min_stable_points
+        ].sort_values(ascending=False)
+        top_blocks: pd.Index = stable_blocks_sorted.head(
+            min(self.top_n_blocks, len(stable_blocks_sorted))
+        ).index
 
         if len(top_blocks) == 0:
-            raise ValueError("No se encontraron bloques estables que cumplan con el mínimo de puntos.")
+            raise ValueError(
+                "No se encontraron bloques estables que cumplan con el mínimo de puntos."
+            )
 
         # Seleccionar el bloque con mayor velocidad promedio
-        block_means: pd.Series = df[df['stable_block'].isin(top_blocks)].groupby('stable_block')[self.speed_col].mean()
+        block_means: pd.Series = (
+            df[df['stable_block'].isin(top_blocks)]
+            .groupby('stable_block')[self.speed_col]
+            .mean()
+        )
         selected_block: int = int(block_means.idxmax())
         stable_region: pd.DataFrame = df[df['stable_block'] == selected_block]
         self.nominal_speed = stable_region[self.speed_col].mean()
@@ -157,7 +173,10 @@ class DataCutter(BaseEstimator, TransformerMixin):
         if not isinstance(X, pd.DataFrame):
             raise ValueError("X debe ser un DataFrame.")
         if self.nominal_speed is None:
-            raise ValueError("La velocidad nominal debe estar definida (asegúrate de ejecutar NominalSpeedIdentifier primero).")
+            raise ValueError(
+                "La velocidad nominal debe estar definida "
+                "(asegúrate de ejecutar NominalSpeedIdentifier primero)."
+            )
         df: pd.DataFrame = X.copy()
         below_threshold: pd.Series = df[self.speed_col] < self.fall_threshold * self.nominal_speed
         for i in range(len(df) - self.min_consecutive + 1):
@@ -202,7 +221,12 @@ class DataScaler(BaseEstimator, TransformerMixin):
         if self.method == 'standard':
             self.scaler = StandardScaler()
         elif self.method == 'minmax':
-            self.scaler = MinMaxScaler(feature_range=(int(self.minmax_range[0]), int(self.minmax_range[1])))
+            self.scaler = MinMaxScaler(
+                feature_range=(
+                    int(self.minmax_range[0]),
+                    int(self.minmax_range[1])
+                )
+            )
         else:
             raise ValueError("El método debe ser 'standard' o 'minmax'.")
         df[columns_to_scale] = self.scaler.fit_transform(df[columns_to_scale])
@@ -228,16 +252,34 @@ class TurbineDataPipeline:
         self.speed_col: str = speed_col
         self.date_col: str = date_col
         self.pipeline: Pipeline = Pipeline([
-            ('loader', DataLoader(speed_col=speed_col, date_col=date_col, delimiter=delimiter, date_format=date_format)),
-            ('nominal_speed', NominalSpeedIdentifier(speed_col=speed_col, max_speed_diff=max_speed_diff,
-                                                    min_stable_points=min_stable_points, top_n_blocks=top_n_blocks)),
-            ('cutter', DataCutter(speed_col=speed_col, fall_threshold=fall_threshold, min_consecutive=min_consecutive)),
-            ('scaler', DataScaler(speed_col=speed_col, date_col=date_col, method=scale_method,
-                                 minmax_range=minmax_range, include_speed=include_speed, trim_percentage=trim_percentage))
+            ('loader', DataLoader(
+                speed_col=speed_col, date_col=date_col,
+                delimiter=delimiter, date_format=date_format
+            )),
+            ('nominal_speed', NominalSpeedIdentifier(
+                speed_col=speed_col, max_speed_diff=max_speed_diff,
+                min_stable_points=min_stable_points, top_n_blocks=top_n_blocks
+            )),
+            ('cutter', DataCutter(
+                speed_col=speed_col, fall_threshold=fall_threshold,
+                min_consecutive=min_consecutive
+            )),
+            ('scaler', DataScaler(
+                speed_col=speed_col,
+                date_col=date_col,
+                method=scale_method,
+                minmax_range=minmax_range,
+                include_speed=include_speed,
+                trim_percentage=trim_percentage
+            ))
         ])
 
-    def fit_transform(self, X: Union[str, pd.DataFrame]) -> Tuple[pd.DataFrame, float, Dict[str, float]]:
-        """Procesa los datos y devuelve el DataFrame preprocesado, la velocidad nominal y los valores máximos de los sensores."""
+    def fit_transform(
+        self,
+        X: Union[str, pd.DataFrame]
+    ) -> Tuple[pd.DataFrame, float, Dict[str, float]]:
+        """Procesa los datos y devuelve el DataFrame preprocesado, la velocidad nominal
+        y los valores máximos de los sensores."""
         # Paso 1: Cargar los datos
         df: pd.DataFrame = self.pipeline.named_steps['loader'].fit_transform(X)
         

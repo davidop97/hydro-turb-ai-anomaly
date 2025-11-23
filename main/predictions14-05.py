@@ -1,10 +1,11 @@
+from typing import Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Optional
-from show_graphs import mostrar_graficas_en_scroll
-from model import DataResidualsProcessor
 from compute_probabilities import compute_desalineacion_probability
+from model import DataResidualsProcessor
+from show_graphs import mostrar_graficas_en_scroll
 
 
 def graficar_ajuste_con_percentiles(

@@ -1,8 +1,9 @@
-from tkinter import Tk, Label, Entry, Button, filedialog
-from model import DataResidualsProcessor
+from tkinter import Button, Entry, Label, Tk, filedialog
+
 import pandas as pd
-from predictions import graficar_ajuste_con_percentiles
 from load_pipeline import preprocess_data
+from model import DataResidualsProcessor
+from predictions import graficar_ajuste_con_percentiles
 
 
 def load_model(model_path: str) -> DataResidualsProcessor:

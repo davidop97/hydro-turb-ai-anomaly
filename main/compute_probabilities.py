@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def compute_desalineacion_probability(residues: np.ndarray, lower_threshold: float, upper_threshold: float) -> np.ndarray:
     """
     Calcula la probabilidad de desalineación para cada punto en 'residues' usando los umbrales dados.

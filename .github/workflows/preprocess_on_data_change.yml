@@ -1,0 +1,34 @@
+name: Preprocess on Data Change
+
+on:
+  push:
+    paths:
+      - 'data/raw/**'
+  workflow_dispatch:
+
+jobs:
+  preprocess:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Run preprocessing workflow
+      run: |
+        python workflows/preprocess.py
+
+    - name: Upload processed data
+      uses: actions/upload-artifact@v3
+      with:
+        name: processed-data
+        path: data/processed/

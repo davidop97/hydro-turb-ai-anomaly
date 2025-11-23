@@ -1,12 +1,17 @@
-from tkinter import Tk, Label, Entry, Button, filedialog, Toplevel, messagebox, Frame, Canvas, Scrollbar, OptionMenu, StringVar, Radiobutton, IntVar
-from show_report_table import show_report_table
-from model import DataResidualsProcessor
+from tkinter import (Button, Canvas, Entry, Frame, IntVar, Label, OptionMenu,
+                     Radiobutton, Scrollbar, StringVar, Tk, Toplevel,
+                     filedialog, messagebox)
+from typing import Dict, Optional
+
 import pandas as pd
-from predictions import graficar_ajuste_con_percentiles
 from load_pipeline import preprocess_data
-from main.plotter import plot_data
-from typing import Optional, Dict
-from vibration_severity_checker import check_vibration_severity, DEFAULT_ACTION_LIMITS
+from model import DataResidualsProcessor
+from predictions import graficar_ajuste_con_percentiles
+from show_report_table import show_report_table
+from vibration_severity_checker import (DEFAULT_ACTION_LIMITS,
+                                        check_vibration_severity)
+
+from src.visualization.plotter import plot_data
 
 # ===========================================================================
 # Constantes

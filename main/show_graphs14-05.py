@@ -1,5 +1,6 @@
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 def mostrar_graficas_en_scroll(fig):

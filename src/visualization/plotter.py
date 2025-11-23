@@ -1,7 +1,7 @@
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.dates as mdates
-import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 def plot_data(df, parent_window):

@@ -1,9 +1,11 @@
-import pandas as pd
+from typing import List, Optional, Tuple, Union
+
+import joblib  # type: ignore
 import numpy as np
-from typing import List, Tuple, Union, Optional
-from sklearn.preprocessing import PolynomialFeatures
+import pandas as pd
 from sklearn.linear_model import LinearRegression
-import joblib # type: ignore
+from sklearn.preprocessing import PolynomialFeatures
+
 
 class DataResidualsProcessor:
     """

@@ -1,5 +1,5 @@
-from tkinter import Toplevel, Frame, Label
-from tkinter import ttk
+from tkinter import Frame, Label, Toplevel, ttk
+
 
 def show_report_table(max_values, machine_type, severity_results, p_desalineacion_cols, p_desbalanceo_cols):
     # Crear ventana emergente

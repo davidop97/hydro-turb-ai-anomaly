@@ -205,3 +205,27 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Data
+data/processed/
+data/raw/*.csv
+*.csv
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Outputs
+outputs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db

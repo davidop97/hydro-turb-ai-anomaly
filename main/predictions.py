@@ -1,10 +1,12 @@
+from typing import Dict, Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Optional, Dict
-from show_graphs import mostrar_graficas_en_scroll
-from model import DataResidualsProcessor
 from compute_probabilities import compute_desalineacion_probability
+from model import DataResidualsProcessor
+from show_graphs import mostrar_graficas_en_scroll
+
 
 def _process_residuals(df: pd.DataFrame, model: DataResidualsProcessor):
     """Procesa los datos para obtener residuos, KPH, datos originales y predicciones."""

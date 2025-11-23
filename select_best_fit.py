@@ -1,9 +1,10 @@
-import numpy as np
 from typing import List
+
+import numpy as np
+
 from main.model import DataResidualsProcessor
 
-    
-    
+
 def select_best_fit(file_paths: List[str], degree: int = 3, speed_col: str = 'KPH', threshold_percentile: float = 90.0) -> DataResidualsProcessor:
     """
     Para cada archivo en file_paths, entrena un modelo candidato (DataResidualsProcessor) y calcula el error promedio

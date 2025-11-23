@@ -1,7 +1,9 @@
 from typing import Dict
+
 import pandas as pd
-from main.plotter import plot_data
-from data_preprocessing.preprocessing_pipeline import TurbineDataPipeline
+
+from src.preprocessing.pipeline import TurbineDataPipeline
+from src.visualization.plotter import plot_data
 
 
 def preprocess_data(file_path: str) -> tuple[pd.DataFrame, pd.DataFrame, float, Dict[str, float]]:
