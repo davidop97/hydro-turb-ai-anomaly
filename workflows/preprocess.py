@@ -30,20 +30,25 @@ def process_directory(
     
     for csv_file in tqdm(csv_files, desc=category):
         try:
-            df_processed, nominal_speed, max_values = pipeline.fit_transform(str(csv_file))
+            df_processed, nominal_speed, max_values = (
+                pipeline.fit_transform(str(csv_file))
+            )
             df_original = pipeline.get_original_data()
             
             # Guardar procesado
             output_path = output_dir / csv_file.name
             df_processed.to_csv(output_path, index=False)
             
-            # Métricas detalladas (sin columna 'error' cuando es exitoso)
+            # Métricas detalladas
             results.append({
                 'filename': csv_file.name,
                 'category': category,
                 'original_rows': len(df_original),
                 'processed_rows': len(df_processed),
-                'reduction_pct': ((len(df_original) - len(df_processed)) / len(df_original)) * 100,
+                'reduction_pct': (
+                    (len(df_original) - len(df_processed)) 
+                    / len(df_original)
+                ) * 100,
                 'nominal_speed': nominal_speed,
                 'columns': len(df_processed.columns),
                 'file_size_kb': csv_file.stat().st_size / 1024,
@@ -75,16 +80,31 @@ def main():
     mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
     mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
     
-    # Configurar el experimento con descripción
+    # Configurar experimento con descripción
     experiment = mlflow.get_experiment_by_name(settings.MLFLOW_EXPERIMENT_NAME)
     if experiment:
-        mlflow.set_experiment_tag("mlflow.note.content", 
+        mlflow.set_experiment_tag(
+            "mlflow.note.content",
             "Pipeline de preprocesamiento de datos de turbinas hidroeléctricas. "
-            "Limpia y normaliza datos de sensores para detección de anomalías.")
+            "Limpia y normaliza datos de sensores para detección de anomalías."
+        )
     
     run_name = f"preprocessing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     with mlflow.start_run(run_name=run_name) as run:
+        
+        # ===== CONFIGURAR DIRECTORIO DE ARTEFACTOS =====
+        run_id = run.info.run_id
+        experiment_id = run.info.experiment_id
+        
+        # Ruta de artifacts para MLflow Docker
+        mlartifacts_base = settings.ROOT_DIR / "mlartifacts"
+        mlflow_artifacts_dir = (
+            mlartifacts_base / str(experiment_id) / run_id / "artifacts"
+        )
+        mlflow_artifacts_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"\n📂 Artefactos se guardarán en: {mlflow_artifacts_dir}\n")
         
         # ===== TAGS =====
         mlflow.set_tags({
@@ -116,7 +136,7 @@ def main():
             df_results = process_directory(input_dir, output_dir, category)
             all_results.append(df_results)
             
-            # Filtrar archivos exitosos usando la columna 'status'
+            # Filtrar archivos exitosos
             files_ok = df_results[df_results['status'] == 'success']
             files_error = df_results[df_results['status'] == 'error']
             
@@ -125,10 +145,18 @@ def main():
                     f"{category}_files_total": len(df_results),
                     f"{category}_files_success": len(files_ok),
                     f"{category}_files_error": len(files_error),
-                    f"{category}_avg_reduction_pct": files_ok['reduction_pct'].mean(),
-                    f"{category}_avg_processed_rows": files_ok['processed_rows'].mean(),
-                    f"{category}_total_original_rows": files_ok['original_rows'].sum(),
-                    f"{category}_total_processed_rows": files_ok['processed_rows'].sum(),
+                    f"{category}_avg_reduction_pct": (
+                        files_ok['reduction_pct'].mean()
+                    ),
+                    f"{category}_avg_processed_rows": (
+                        files_ok['processed_rows'].mean()
+                    ),
+                    f"{category}_total_original_rows": (
+                        files_ok['original_rows'].sum()
+                    ),
+                    f"{category}_total_processed_rows": (
+                        files_ok['processed_rows'].sum()
+                    ),
                 })
                 
                 total_files_processed += len(files_ok)
@@ -150,14 +178,26 @@ def main():
         # ===== GUARDAR RESUMEN =====
         summary_df = pd.concat(all_results, ignore_index=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        summary_path = settings.DATA_DIR / "processed" / f"summary_{timestamp}.csv"
-        summary_df.to_csv(summary_path, index=False)
         
-        # ===== ARTEFACTOS =====
+        # Guardar también en data/processed (para uso local)
+        summary_path_local = (
+            settings.DATA_DIR / "processed" / f"summary_{timestamp}.csv"
+        )
+        summary_df.to_csv(summary_path_local, index=False)
+        
+        # ===== GUARDAR ARTEFACTOS EN MLARTIFACTS =====
+        reports_dir = mlflow_artifacts_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        
+        configs_dir = mlflow_artifacts_dir / "configs"
+        configs_dir.mkdir(parents=True, exist_ok=True)
+        
         # 1. Resumen CSV
-        mlflow.log_artifact(str(summary_path), artifact_path="reports")
+        summary_path = reports_dir / f"summary_{timestamp}.csv"
+        summary_df.to_csv(summary_path, index=False)
+        print(f"✓ Guardado: {summary_path.name}")
         
-        # 2. Estadísticas detalladas por categoría (JSON)
+        # 2. Estadísticas detalladas (JSON)
         stats = {}
         for category in ['imbalance', 'misalignment']:
             cat_data = summary_df[
@@ -167,35 +207,49 @@ def main():
             if len(cat_data) > 0:
                 stats[category] = {
                     "files_processed": int(len(cat_data)),
-                    "avg_rows_original": float(cat_data['original_rows'].mean()),
-                    "avg_rows_processed": float(cat_data['processed_rows'].mean()),
-                    "avg_reduction_pct": float(cat_data['reduction_pct'].mean()),
-                    "total_rows_processed": int(cat_data['processed_rows'].sum())
+                    "avg_rows_original": float(
+                        cat_data['original_rows'].mean()
+                    ),
+                    "avg_rows_processed": float(
+                        cat_data['processed_rows'].mean()
+                    ),
+                    "avg_reduction_pct": float(
+                        cat_data['reduction_pct'].mean()
+                    ),
+                    "total_rows_processed": int(
+                        cat_data['processed_rows'].sum()
+                    )
                 }
         
-        stats_path = settings.DATA_DIR / "processed" / f"stats_{timestamp}.json"
-        with open(stats_path, 'w') as f:
+        stats_path = reports_dir / f"stats_{timestamp}.json"
+        with open(stats_path, 'w', encoding='utf-8') as f:
             json.dump(stats, f, indent=2)
-        mlflow.log_artifact(str(stats_path), artifact_path="reports")
+        print(f"✓ Guardado: {stats_path.name}")
         
-        # 3. Log de configuración del pipeline
+        # 3. Configuración del pipeline
         pipeline_config = {
             "raw_data_dir": str(settings.DATA_DIR / "raw"),
             "processed_data_dir": str(settings.DATA_DIR / "processed"),
             "categories": ["imbalance", "misalignment"],
             "execution_date": datetime.now().isoformat()
         }
-        config_path = settings.DATA_DIR / "processed" / f"config_{timestamp}.json"
-        with open(config_path, 'w') as f:
+        
+        config_path = configs_dir / f"config_{timestamp}.json"
+        with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(pipeline_config, f, indent=2)
-        mlflow.log_artifact(str(config_path), artifact_path="configs")
+        print(f"✓ Guardado: {config_path.name}")
         
         # ===== REGISTRAR DATASETS =====
         try:
             # Dataset de entrada
             mlflow.log_input(
                 mlflow.data.from_pandas(
-                    summary_df[['filename', 'category', 'original_rows', 'status']],
+                    summary_df[[
+                        'filename',
+                        'category',
+                        'original_rows',
+                        'status'
+                    ]],
                     source=str(settings.DATA_DIR / "raw"),
                     name="raw_turbine_data"
                 ),
@@ -205,43 +259,51 @@ def main():
             # Dataset de salida
             mlflow.log_input(
                 mlflow.data.from_pandas(
-                    summary_df[
-                        [
-                            'filename',
-                            'category',
-                            'processed_rows',
-                            'reduction_pct',
-                            'status'
-                        ]
-                    ],
+                    summary_df[[
+                        'filename',
+                        'category',
+                        'processed_rows',
+                        'reduction_pct',
+                        'status'
+                    ]],
                     source=str(settings.DATA_DIR / "processed"),
                     name="processed_turbine_data"
                 ),
                 context="training"
             )
         except Exception as e:
-            print(f"⚠️ No se pudieron registrar datasets en MLflow: {e}")
+            print(f"⚠️ No se pudieron registrar datasets: {e}")
         
-        # ===== IMPRIMIR RESUMEN =====
+        # ===== RESUMEN FINAL =====
         print(f"\n{'='*70}")
-        print("✅ Procesamiento completado")
+        print("✅ PROCESAMIENTO COMPLETADO")
         print(f"{'='*70}")
-        print(f"\n📊 Resumen guardado en: {summary_path}")
+        print(f"\n📊 Resumen local: {summary_path_local}")
+        print(f"📦 Artefactos MLflow: {mlflow_artifacts_dir}")
         print("\n📈 Estadísticas por categoría:")
         
-        # Solo mostrar estadísticas de archivos exitosos
+        # Mostrar estadísticas
         success_df = summary_df[summary_df['status'] == 'success']
         if len(success_df) > 0:
-            print(success_df.groupby('category')[['processed_rows', 'reduction_pct']].mean())
+            print(
+                success_df.groupby('category')[[
+                    'processed_rows',
+                    'reduction_pct'
+                ]].mean()
+            )
         
-        # Mostrar errores si los hay
+        # Mostrar errores
         error_df = summary_df[summary_df['status'] == 'error']
         if len(error_df) > 0:
             print(f"\n⚠️ Archivos con errores: {len(error_df)}")
             print(error_df[['filename', 'category', 'error_message']])
         
         print(f"\n🔗 MLflow Run ID: {run.info.run_id}")
-        print(f"🌐 Ver en: http://localhost:5000/#/experiments/{run.info.experiment_id}/runs/{run.info.run_id}")
+        print(
+            f"🌐 Ver en: http://localhost:5000/#/experiments/"
+            f"{run.info.experiment_id}/runs/{run.info.run_id}"
+        )
+        print(f"{'='*70}\n")
 
 
 if __name__ == "__main__":
