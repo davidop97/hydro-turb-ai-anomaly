@@ -20,7 +20,10 @@ def plot_data(df, parent_window):
 
     # Seleccionar columnas para graficar (excluyendo 'Fecha' y 'KPH')
     columns_to_plot = [col for col in df.columns if col not in ['Fecha', 'KPH']]
-    colors = ['tab:red', 'tab:green', 'tab:orange', 'tab:gray', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+    colors = [
+        'tab:red', 'tab:green', 'tab:orange', 'tab:gray', 'tab:purple',
+        'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan'
+    ]
 
     # Graficar cada columna
     for i, column in enumerate(columns_to_plot):
@@ -39,7 +42,11 @@ def plot_data(df, parent_window):
     fig.legend(loc="upper left", bbox_to_anchor=(1.07, 0.75), fontsize=9)
 
     # Título dinámico basado en nombre del DataFrame y columnas
-    # title = f"Gráfico de sensores de desplazamiento {columns_to_plot} del eje respecto a un punto de referencia y Velocidad (KPH) Normalizadas de una Turbina Hidráulica vs Tiempo (En el instante de parada)"
+    # title = (
+    #     f"Gráfico de sensores de desplazamiento {columns_to_plot} del eje "
+    #     "respecto a un punto de referencia y Velocidad (KPH) Normalizadas "
+    #     "de una Turbina Hidráulica vs Tiempo (En el instante de parada)"
+    # )
     # plt.title(title, fontsize=14, fontweight='bold', pad=15, wrap=True)
 
     # Ajustamos el formato de la gráfica
