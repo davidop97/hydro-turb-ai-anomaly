@@ -40,9 +40,10 @@ def main():
         
         for f in files_0:
             try:
-                # Calcular residuos para este archivo
-                # El método calculate_residuals_global maneja internamente
-                # la selección de sensores que coincidan
+                # calculate_residuals_global maneja internamente:
+                # - Diferentes nombres de sensores en cada archivo
+                # - NaN en datos de velocidad o sensores
+                # - Filtrado de columnas no numéricas
                 res_matrix, _, _, _, _ = (
                     residuals_model.calculate_residuals_global(
                         ruta_archivo=str(f)
