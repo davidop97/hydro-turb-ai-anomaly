@@ -246,21 +246,29 @@ class  DataResidualsProcessor:
         self,
         df: Optional[pd.DataFrame] = None,
         ruta_archivo: Optional[str] = None,
-        return_predictions: bool = True
-    ) -> Tuple[np.ndarray, List[str], np.ndarray, np.ndarray, np.ndarray]:
+        return_predictions: bool = True,
+        verbose: bool = False
+    ) -> Tuple[np.ndarray, List[str], np.ndarray, np.ndarray, Optional[np.ndarray]]:
         """
         Calcula residuos en datos nuevos usando modelo entrenado.
         
-        Usa el mejor modelo entrenado (primer sensor) como referencia
-        y lo aplica a TODOS los sensores nuevos (incluso si tienen nombres diferentes).
+        Maneja internamente archivos heterogéneos:
+        - Usa el mejor modelo entrenado (primer sensor) como referencia
+        - Lo aplica a TODOS los sensores nuevos (incluso si tienen nombres diferentes)
+        - Filtra columnas no numéricas automáticamente
+        - Maneja NaN de forma segura
         
         Args:
             df: DataFrame con datos nuevos
             ruta_archivo: Ruta a archivo CSV
             return_predictions: Incluir predicciones
+            verbose: Mostrar información del modelo utilizado
             
         Returns:
             Tupla (residuals, sensor_names, velocities, originals, predictions)
+            
+        Raises:
+            ValueError: Si el modelo no está entrenado o no hay sensores válidos
         """
         if self.best_model is None:
             raise ValueError(
@@ -270,15 +278,41 @@ class  DataResidualsProcessor:
         # Cargar datos nuevos
         data = self._load_data(ruta_archivo, df)
         
-        # Transformar velocidad
-        kph = data[self.speed_col].to_numpy().reshape(-1, 1)
-        X_poly = self.poly.transform(kph)
+        # Verificar que existe la columna de velocidad
+        if self.speed_col not in data.columns:
+            raise ValueError(
+                f"Columna de velocidad '{self.speed_col}' no encontrada en datos"
+            )
         
-        # Sensores nuevos
+        # Sensores nuevos (columnas numéricas excluyendo metadata)
+        excluded_cols = {'Fecha', self.speed_col, 'KPH_abs'}
         new_sensor_cols = [
             col for col in data.columns
-            if col not in ['Fecha', self.speed_col, 'KPH_abs']
+            if col not in excluded_cols and pd.api.types.is_numeric_dtype(data[col])
         ]
+        
+        if not new_sensor_cols:
+            raise ValueError(
+                "No se encontraron columnas de sensores válidas en los datos"
+            )
+        
+        if verbose:
+            print(f"Usando modelo de referencia del sensor: {self.best_sensor}")
+            print(f"Aplicando a {len(new_sensor_cols)} sensores: {new_sensor_cols}")
+        
+        # Identificar filas válidas (sin NaN en velocidad y sensores)
+        cols_to_check = [self.speed_col] + new_sensor_cols
+        valid_mask = data[cols_to_check].notna().all(axis=1)
+        data_clean = data.loc[valid_mask].copy()
+        
+        if len(data_clean) == 0:
+            raise ValueError(
+                "No hay filas válidas después de eliminar NaN"
+            )
+        
+        # Transformar velocidad
+        kph = data_clean[self.speed_col].to_numpy().reshape(-1, 1)
+        X_poly = self.poly.transform(kph)
         
         # Aplicar modelo de referencia a cada sensor
         residuals_list = []
@@ -286,7 +320,7 @@ class  DataResidualsProcessor:
         original_list = []
         
         for col in new_sensor_cols:
-            y_real = data[col].values
+            y_real = data_clean[col].values
             y_pred = self.best_model.predict(X_poly)
             resid = y_real - y_pred
             

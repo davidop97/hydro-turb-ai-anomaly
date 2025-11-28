@@ -361,20 +361,27 @@ def main():
         y_labels = []
 
         processed_dir = settings.DATA_DIR / "processed"
-
-        # DESBALANCEO (0)
-        files_0 = sorted(
-            list((processed_dir / "imbalance").glob("*.csv"))
-        )
-        print(f"📂 DESBALANCEO: {len(files_0)} archivos\n")
-
-        for i, f in enumerate(files_0, 1):
+        
+        # --- PROCESAR DESBALANCEO (Clase 0) ---
+        files_0 = list((processed_dir / "imbalance").glob("*.csv"))
+        print(f"📂 Procesando {len(files_0)} archivos de Desbalanceo...")
+        
+        for f in files_0:
             try:
-                res_matrix, _, _, _, _ = residuals_model.calculate_residuals_global(
-                    ruta_archivo=str(f)
+                # Calcular residuos para este archivo
+                # El método calculate_residuals_global maneja internamente
+                # la selección de sensores que coincidan
+                res_matrix, _, _, _, _ = (
+                    residuals_model.calculate_residuals_global(
+                        ruta_archivo=str(f)
+                    )
                 )
-                features = extract_statistical_features(res_matrix)
-                X_features.append(features[0])
+                
+                # EXTRAER FEATURE (Media absoluta)
+                # Esto convierte (n_samples, n_sensors) -> (1, 1)
+                mean_res = np.mean(np.abs(res_matrix))
+                
+                X_features.append([mean_res])
                 y_labels.append(0)
 
                 if i % 5 == 0 or i == len(files_0):
