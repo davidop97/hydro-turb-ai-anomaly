@@ -379,9 +379,8 @@ def main():
                 
                 # EXTRAER FEATURE (Media absoluta)
                 # Esto convierte (n_samples, n_sensors) -> (1, 1)
-                mean_res = np.mean(np.abs(res_matrix))
-                
-                X_features.append([mean_res])
+                features = extract_statistical_features(res_matrix)
+                X_features.append(features[0])  # ← Ahora es array de 12
                 y_labels.append(0)
 
                 if i % 5 == 0 or i == len(files_0):

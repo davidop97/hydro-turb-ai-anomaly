@@ -22,48 +22,15 @@ def create_prediction_report(
     """Crea reporte visual de predicción."""
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Gráfica 1: Probabilidades por muestra
+    # Gráfica 1: Anomaly scores vs threshold
     fig, ax = plt.subplots(figsize=(14, 6), dpi=100)
     
-    x = np.arange(len(detector_result['p_desbalanceo_por_muestra']))
-    ax.fill_between(
-        x,
-        0,
-        detector_result['p_desbalanceo_por_muestra'],
-        alpha=0.6,
-        color=COLORS['primary'],
-        label='P(Desbalanceo)'
-    )
-    ax.fill_between(
-        x,
-        detector_result['p_desbalanceo_por_muestra'],
-        1,
-        alpha=0.6,
-        color=COLORS['accent'],
-        label='P(Desalineación)'
-    )
-    
-    ax.set_title(
-        f'Probabilidades de Anomalía por Muestra (Clasificador: {best_method.upper()})',
-        fontsize=14,
-        fontweight='bold'
-    )
-    ax.set_xlabel('Muestra', fontsize=11, fontweight='bold')
-    ax.set_ylabel('Probabilidad', fontsize=11, fontweight='bold')
-    ax.legend(fontsize=10)
-    ax.grid(alpha=0.3, linestyle=':')
-    ax.set_ylim([0, 1])
-    
-    plt.tight_layout()
-    plt.savefig(output_dir / "01_probabilities.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    # Gráfica 2: Anomaly scores vs threshold
-    fig, ax = plt.subplots(figsize=(14, 6), dpi=100)
+    anomaly_scores = detector_result['anomaly_scores']
+    x = np.arange(len(anomaly_scores))
     
     ax.scatter(
         x,
-        detector_result['anomaly_scores'],
+        anomaly_scores,
         alpha=0.6,
         s=30,
         color=COLORS['secondary'],
@@ -78,7 +45,7 @@ def create_prediction_report(
     )
     
     ax.set_title(
-        'Anomaly Scores vs Umbral',
+        f'Anomaly Scores vs Umbral (Clasificador: {best_method.upper()})',
         fontsize=14,
         fontweight='bold'
     )
@@ -88,17 +55,17 @@ def create_prediction_report(
     ax.grid(alpha=0.3, linestyle=':')
     
     plt.tight_layout()
-    plt.savefig(output_dir / "02_anomaly_scores.png", dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / "01_anomaly_scores.png", dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Gráfica 3: Clasificación por sensor
+    # Gráfica 2: Clasificación por sensor
     fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
     
     sensors = detector_result['sensors']
     if len(detector_result['residuals'].shape) == 2:
         sensor_scores = np.abs(detector_result['residuals']).mean(axis=0)
     else:
-        sensor_scores = np.abs(detector_result['residuals'])
+        sensor_scores = np.array([np.abs(detector_result['residuals']).mean()])
     
     colors_sensors = [COLORS['accent'] if s > 0.1 else COLORS['primary'] for s in sensor_scores]
     bars = ax.bar(
@@ -119,10 +86,10 @@ def create_prediction_report(
                 f'{score:.4f}', ha='center', va='bottom', fontsize=9)
     
     plt.tight_layout()
-    plt.savefig(output_dir / "03_residuals_by_sensor.png", dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / "02_residuals_by_sensor.png", dpi=300, bbox_inches='tight')
     plt.close()
     
-    print("✓ Gráficas de predicción generadas (3 gráficas)")
+    print("✓ Gráficas de predicción generadas (2 gráficas)")
 
 
 def main():
