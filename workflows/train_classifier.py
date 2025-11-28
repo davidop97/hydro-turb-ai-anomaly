@@ -366,7 +366,7 @@ def main():
         files_0 = list((processed_dir / "imbalance").glob("*.csv"))
         print(f"📂 Procesando {len(files_0)} archivos de Desbalanceo...")
         
-        for f in files_0:
+        for i, f in enumerate(files_0, 1):
             try:
                 # Calcular residuos para este archivo
                 # El método calculate_residuals_global maneja internamente
