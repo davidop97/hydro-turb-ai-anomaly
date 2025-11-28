@@ -37,7 +37,7 @@ if uploaded_file is not None:
     # === TABS ===
     tab1, tab2, tab3 = st.tabs(["📊 Predicción", "📈 Gráficas por Sensor", "🎯 Severidad"])
     
-    # === TAB 1: PREDICCIÓN GLOBAL ===
+    # === TAB 1: PREDICCIÓN GLOBAL (SIN GRÁFICOS) ===
     with tab1:
         st.subheader("Resultado de Predicción Global")
         
@@ -45,46 +45,45 @@ if uploaded_file is not None:
         desbal_pct = probs["desbalanceo"] * 100
         desalin_pct = probs["desalineacion"] * 100
         
+        prediction = result["prediction"]
+        confidence = result["confidence"] * 100
+        
         # Mostrar predicción grande y clara
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            prediction = result["prediction"]
-            confidence = result["confidence"] * 100
-            
             if "DESALINEACIÓN" in prediction:
                 st.error(f"🔴 **{prediction}**\nConfianza: {confidence:.1f}%", icon="⚠️")
             else:
                 st.success(f"🟢 **{prediction}**\nConfianza: {confidence:.1f}%", icon="✅")
         
         with col2:
-            st.metric("Anomalías", result["metadata"]["n_anomalies"])
+            total_points = result["metadata"]["samples_analyzed"]
+            st.metric("Total Muestras", total_points)
         
         st.markdown("---")
         
-        # Gráfica Pie Chart
-        fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+        # Calcular puntos por fenómeno
+        desbal_points = int(total_points * probs["desbalanceo"])
+        desalin_points = int(total_points * probs["desalineacion"])
         
-        sizes = [desbal_pct, desalin_pct]
-        labels = [f"Desbalanceo\n{desbal_pct:.1f}%", f"Desalineación\n{desalin_pct:.1f}%"]
-        colors = ["#059669", "#DC2626"]
-        explode = (0.05, 0.05)
+        st.subheader("📊 Distribución de Fenómenos")
         
-        wedges, texts, autotexts = ax.pie(
-            sizes, 
-            explode=explode, 
-            labels=labels, 
-            colors=colors, 
-            autopct="%1.1f%%",
-            shadow=True, 
-            startangle=90,
-            textprops={"fontsize": 12, "fontweight": "bold"}
-        )
+        col1, col2 = st.columns(2)
         
-        ax.set_title("Distribución de Probabilidad", fontsize=14, fontweight="bold")
+        with col1:
+            st.metric(
+                "🟢 Desbalanceo",
+                f"{desbal_points} puntos",
+                delta=f"{desbal_pct:.1f}%"
+            )
         
-        plt.tight_layout()
-        st.pyplot(fig)
+        with col2:
+            st.metric(
+                "🔴 Desalineación",
+                f"{desalin_points} puntos",
+                delta=f"{desalin_pct:.1f}%"
+            )
         
         st.markdown("---")
         
@@ -93,26 +92,25 @@ if uploaded_file is not None:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.info(f"**Muestras:** {result['metadata']['samples_analyzed']}")
+            st.info(f"**Velocidad Nominal:** {result['metadata']['nominal_speed']:.2f} KPH")
         with col2:
-            st.info(f"**Velocidad:** {result['metadata']['nominal_speed']:.2f} KPH")
+            st.info(f"**Cantidad de Sensores:** {len(result['metadata']['sensors'])}")
         with col3:
-            st.info(f"**Sensores:** {len(result['metadata']['sensors'])}")
+            sensors_list = ", ".join(result['metadata']['sensors'])
+            st.info(f"**Sensores:** {sensors_list}")
         with col4:
-            st.info(f"**Anomalías Detectadas:** {result['metadata']['n_anomalies']}")
+            st.info(f"**Confianza del Modelo:** {confidence:.1f}%")
     
     # === TAB 2: GRÁFICAS POR SENSOR ===
     with tab2:
         st.subheader("📈 Análisis Detallado por Sensor")
         
-        # ✅ Obtener datos de metadata
         sensor_data = result["metadata"].get("sensor_data", {})
         sensors = result["metadata"]["sensors"]
         kph = result["metadata"].get("kph", [])
         severity = result["severity"]
         max_values = result["metadata"].get("max_values", {})
         
-        # Color por severidad
         severity_colors = {
             "verde": "#059669",
             "amarillo": "#F59E0B",
@@ -120,27 +118,21 @@ if uploaded_file is not None:
         }
         
         for sensor in sensors:
-            st.markdown(f"### {sensor}")
+            st.markdown(f"#### {sensor}")
             
-            # Obtener severidad de este sensor
             sensor_severity = severity.get(sensor, "desconocido").lower()
             severity_color = severity_colors.get(sensor_severity, "#666666")
             max_val = max_values.get(sensor, 0)
             
-            # Mostrar severidad en la parte superior
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(
-                    f"**Severidad:** <span style='color: {severity_color}; font-size: 18px; font-weight: bold;'>{sensor_severity.upper()}</span>",  # noqa: E501
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"**Severidad:** <span style='color: {severity_color}; font-size: 16px; font-weight: bold;'>{sensor_severity.upper()}</span>", unsafe_allow_html=True)  # noqa: E501
             with col2:
                 st.markdown(f"**Valor Máx:** {max_val:.2f}")
             with col3:
                 mean_residual = sensor_data.get(sensor, {}).get("mean_residual", 0)
                 st.markdown(f"**Residuo Medio:** {mean_residual:.4f}")
             
-            # Gráfica: Original vs Predicción
             if sensor in sensor_data:
                 fig, ax = plt.subplots(figsize=(12, 5), dpi=100)
                 
@@ -156,7 +148,6 @@ if uploaded_file is not None:
                 )
                 
                 ax.plot(kph, predicted, color="red", label="Ajuste Polinómico", linewidth=2.5)
-                
                 ax.fill_between(kph, predicted, original, color="gray", alpha=0.2, label="Residuo")
                 
                 ax.set_xlabel("KPH (Velocidad)", fontsize=11, fontweight="bold")
@@ -165,7 +156,6 @@ if uploaded_file is not None:
                 ax.legend(loc="best", fontsize=10)
                 ax.grid(True, alpha=0.3)
                 
-                # Colorbar para residuos
                 scatter = ax.collections[0]
                 cbar = plt.colorbar(scatter, ax=ax)
                 cbar.set_label("|Residuo|", fontsize=10, fontweight="bold")
@@ -182,22 +172,20 @@ if uploaded_file is not None:
         severity = result["severity"]
         max_vals = result["metadata"].get("max_values", {})
         
-        # Crear tabla con nombres visibles
         severity_data = []
         for sensor in result["metadata"]["sensors"]:
             level = severity.get(sensor, "desconocido")
             max_val = max_vals.get(sensor, 0)
             
             severity_data.append({
-                "🔹 SENSOR": f"**{sensor}**",
-                "📊 VALOR MÁX": f"{max_val:.2f}",
-                "🎯 SEVERIDAD": f"**{level.upper()}**",
-                "ESTADO": "✅ OK" if "verde" in level.lower() else ("⚠️ ALERTA" if "amarillo" in level.lower() else "❌ CRÍTICO")  # noqa: E501
+                "Sensor": sensor,
+                "Valor Máx": f"{max_val:.2f}",
+                "Severidad": level.upper(),
+                "Estado": "✅ OK" if "verde" in level.lower() else ("⚠️ ALERTA" if "amarillo" in level.lower() else "❌ CRÍTICO")  # noqa: E501
             })
         
         df_sev = pd.DataFrame(severity_data)
         
-        # Mostrar tabla HTML bonita
         html_table = "<table style='width: 100%; border-collapse: collapse;'>"
         html_table += "<tr style='background-color: #1E3A8A; color: white;'>"
         for col in df_sev.columns:
@@ -205,7 +193,7 @@ if uploaded_file is not None:
         html_table += "</tr>"
         
         for idx, row in df_sev.iterrows():
-            severity_val = row["🎯 SEVERIDAD"].lower()
+            severity_val = row["Severidad"].lower()
             
             if "verde" in severity_val:
                 bg_color = "#DCFCE7"
@@ -218,8 +206,10 @@ if uploaded_file is not None:
                 text_color = "#DC2626"
             
             html_table += f"<tr style='background-color: {bg_color};'>"
-            for col in df_sev.columns:
-                html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row[col]}</td>"  # noqa: E501
+            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Sensor']}</td>"  # noqa: E501
+            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Valor Máx']}</td>"  # noqa: E501
+            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Severidad']}</td>"  # noqa: E501
+            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Estado']}</td>"  # noqa: E501
             html_table += "</tr>"
         
         html_table += "</table>"
@@ -227,7 +217,6 @@ if uploaded_file is not None:
         
         st.markdown("---")
         
-        # Resumen
         verde = sum(1 for s in severity.values() if "verde" in s.lower())
         amarillo = sum(1 for s in severity.values() if "amarillo" in s.lower())
         rojo = sum(1 for s in severity.values() if "rojo" in s.lower())
@@ -236,27 +225,26 @@ if uploaded_file is not None:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("🟢 VERDE (Normal)", verde, delta=f"{verde}/{len(severity)}")
+            st.metric("🟢 Verde", verde, delta=f"{verde}/{len(severity)}")
         with col2:
-            st.metric("🟡 AMARILLO (Alerta)", amarillo, delta=f"{amarillo}/{len(severity)}")
+            st.metric("🟡 Amarillo", amarillo, delta=f"{amarillo}/{len(severity)}")
         with col3:
-            st.metric("🔴 ROJO (Crítico)", rojo, delta=f"{rojo}/{len(severity)}")
+            st.metric("🔴 Rojo", rojo, delta=f"{rojo}/{len(severity)}")
         
         st.markdown("---")
         
-        # Recomendaciones
         st.subheader("💡 Recomendaciones")
         
         if rojo > 0:
             sensores_rojos = [s for s, level in severity.items() if "rojo" in level.lower()]
-            st.error(f"🔴 **CRÍTICO**: Sensores en rojo: {', '.join(sensores_rojos)}. Requiere atención INMEDIATA.")  # noqa: E501
+            st.error(f"🔴 CRÍTICO: {', '.join(sensores_rojos)} - Atención INMEDIATA")
         
         if amarillo > 0:
             sensores_amarillos = [s for s, level in severity.items() if "amarillo" in level.lower()]
-            st.warning(f"🟡 **ALERTA**: Sensores en alerta: {', '.join(sensores_amarillos)}. Monitorear continuamente.")  # noqa: E501
+            st.warning(f"🟡 ALERTA: {', '.join(sensores_amarillos)} - Monitoreo continuo")
         
         if verde == len(severity):
-            st.success("🟢 **NORMAL**: Todos los sensores dentro de los límites normales.")
+            st.success("🟢 NORMAL: Todos los sensores dentro de límites")
 
 else:
     st.info("👈 Carga un archivo CSV para comenzar el análisis")
