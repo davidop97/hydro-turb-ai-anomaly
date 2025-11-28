@@ -1,10 +1,18 @@
+import os
+import sys
+import tempfile
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import requests
 import streamlit as st
 
-API_URL = "http://localhost:8000"
+ROOT_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+from src.models.turb_predictor import TurbinePredictor  # noqa: E402
 
+# === CONFIG ===
 st.set_page_config(
     page_title="Turbina Anomaly Detector",
     page_icon="⚡",
@@ -15,6 +23,27 @@ st.set_page_config(
 st.title("⚡ Detector de Anomalías en Turbinas Hidráulicas")
 st.markdown("---")
 
+# === CACHE: Cargar predictor una sola vez ===
+@st.cache_resource
+def load_predictor():
+    return TurbinePredictor()
+
+predictor = load_predictor()
+
+# === FUNCIÓN AUXILIAR: Convertir numpy (igual que en el endpoint) ===
+def convert_numpy(obj):
+    """Convierte numpy arrays a listas/floats."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: convert_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy(item) for item in obj]
+    return obj
+
+# === SIDEBAR ===
 with st.sidebar:
     st.header("⚙️ Configuración")
     uploaded_file = st.file_uploader("Carga archivo CSV:", type=["csv"])
@@ -23,21 +52,61 @@ if uploaded_file is not None:
     
     with st.spinner("🔄 Procesando..."):
         try:
-            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
-            response = requests.post(f"{API_URL}/predict", files=files, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-        except requests.exceptions.ConnectionError:
-            st.error("❌ FastAPI no está corriendo en puerto 8000")
-            st.stop()
+            # === LÓGICA DEL ENDPOINT PREDICT ===
+            temp_path = None
+            
+            # Validar extensión
+            if not uploaded_file.name.endswith('.csv'):
+                st.error("❌ Solo archivos CSV permitidos")
+                st.stop()
+            
+            # Guardar temporalmente
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+                temp_file.write(uploaded_file.getvalue())
+                temp_path = temp_file.name
+            
+            # Predicción
+            result = predictor.predict(temp_path)
+            
+            # ✅ Convertir numpy (igual que en el endpoint)
+            sensor_data_clean = {}
+            for sensor, data in result.get("sensor_data", {}).items():
+                sensor_data_clean[sensor] = {
+                    "original": convert_numpy(data["original"]),
+                    "predicted": convert_numpy(data["predicted"]),
+                    "residual": convert_numpy(data["residual"]),
+                    "abs_residual": convert_numpy(data["abs_residual"]),
+                    "mean_residual": float(data["mean_residual"])
+                }
+            
+            # ✅ Estructura final (igual que endpoint)
+            result = {
+                "prediction": result["prediction"],
+                "confidence": result["confidence"],
+                "probabilities": result["probabilities"],
+                "metadata": {
+                    **result["metadata"],
+                    "sensor_data": sensor_data_clean,
+                    "kph": convert_numpy(result.get("kph", [])),
+                    "max_values": convert_numpy(result.get("max_values", {}))
+                },
+                "severity": result["severity"]
+            }
+            
+            # Limpiar
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
+            
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
             st.stop()
     
     # === TABS ===
     tab1, tab2, tab3 = st.tabs(["📊 Predicción", "📈 Gráficas por Sensor", "🎯 Severidad"])
     
-    # === TAB 1: PREDICCIÓN GLOBAL (SIN GRÁFICOS) ===
+    # === TAB 1: PREDICCIÓN GLOBAL ===
     with tab1:
         st.subheader("Resultado de Predicción Global")
         
@@ -48,7 +117,6 @@ if uploaded_file is not None:
         prediction = result["prediction"]
         confidence = result["confidence"] * 100
         
-        # Mostrar predicción grande y clara
         col1, col2 = st.columns([2, 1])
         
         with col1:
@@ -63,7 +131,6 @@ if uploaded_file is not None:
         
         st.markdown("---")
         
-        # Calcular puntos por fenómeno
         desbal_points = int(total_points * probs["desbalanceo"])
         desalin_points = int(total_points * probs["desalineacion"])
         
@@ -87,7 +154,6 @@ if uploaded_file is not None:
         
         st.markdown("---")
         
-        # Detalles
         st.subheader("📋 Información del Análisis")
         col1, col2, col3, col4 = st.columns(4)
         
@@ -126,7 +192,12 @@ if uploaded_file is not None:
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(f"**Severidad:** <span style='color: {severity_color}; font-size: 16px; font-weight: bold;'>{sensor_severity.upper()}</span>", unsafe_allow_html=True)  # noqa: E501
+                st.markdown(
+                    f"**Severidad:** "
+                    f"<span style='color: {severity_color}; font-size: 16px; font-weight: bold;'>"
+                    f"{sensor_severity.upper()}</span>",
+                    unsafe_allow_html=True
+                )
             with col2:
                 st.markdown(f"**Valor Máx:** {max_val:.2f}")
             with col3:
@@ -181,7 +252,11 @@ if uploaded_file is not None:
                 "Sensor": sensor,
                 "Valor Máx": f"{max_val:.2f}",
                 "Severidad": level.upper(),
-                "Estado": "✅ OK" if "verde" in level.lower() else ("⚠️ ALERTA" if "amarillo" in level.lower() else "❌ CRÍTICO")  # noqa: E501
+                "Estado": (
+                    "✅ OK" if "verde" in level.lower()
+                    else ("⚠️ ALERTA" if "amarillo" in level.lower()
+                          else "❌ CRÍTICO")
+                )
             })
         
         df_sev = pd.DataFrame(severity_data)
@@ -189,7 +264,10 @@ if uploaded_file is not None:
         html_table = "<table style='width: 100%; border-collapse: collapse;'>"
         html_table += "<tr style='background-color: #1E3A8A; color: white;'>"
         for col in df_sev.columns:
-            html_table += f"<th style='padding: 12px; text-align: left; border: 1px solid #ccc;'>{col}</th>"  # noqa: E501
+            html_table += (
+                f"<th style='padding: 12px; text-align: left; border: 1px solid #ccc;'>"
+                f"{col}</th>"
+            )
         html_table += "</tr>"
         
         for idx, row in df_sev.iterrows():
@@ -206,10 +284,22 @@ if uploaded_file is not None:
                 text_color = "#DC2626"
             
             html_table += f"<tr style='background-color: {bg_color};'>"
-            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Sensor']}</td>"  # noqa: E501
-            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Valor Máx']}</td>"  # noqa: E501
-            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Severidad']}</td>"  # noqa: E501
-            html_table += f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; font-weight: bold;'>{row['Estado']}</td>"  # noqa: E501
+            html_table += (
+                f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; "
+                f"font-weight: bold;'>{row['Sensor']}</td>"
+            )
+            html_table += (
+                f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; "
+                f"font-weight: bold;'>{row['Valor Máx']}</td>"
+            )
+            html_table += (
+                f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; "
+                f"font-weight: bold;'>{row['Severidad']}</td>"
+            )
+            html_table += (
+                f"<td style='padding: 12px; border: 1px solid #ccc; color: {text_color}; "
+                f"font-weight: bold;'>{row['Estado']}</td>"
+            )
             html_table += "</tr>"
         
         html_table += "</table>"
