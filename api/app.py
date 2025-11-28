@@ -5,8 +5,8 @@ from fastapi import FastAPI
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
-from api.routes.health import router as health_router
-from api.routes.prediction import router as prediction_router
+from api.routes.health import router as health_router  # noqa: E402
+from api.routes.predictions import router as prediction_router  # noqa: E402
 
 app = FastAPI(
     title="Turbine Diagnostics API",

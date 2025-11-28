@@ -29,7 +29,10 @@ def check_vibration_severity(
     Compara los valores máximos de vibración con los límites de acción y determina la severidad.
     """
     if machine_type not in DEFAULT_ACTION_LIMITS:
-        raise ValueError(f"Tipo de máquina '{machine_type}' no reconocido. Opciones: {list(DEFAULT_ACTION_LIMITS.keys())}")
+        raise ValueError(
+            f"Tipo de máquina '{machine_type}' no reconocido. "
+            f"Opciones: {list(DEFAULT_ACTION_LIMITS.keys())}"
+        )
 
     if severity_level not in [None, 'verde', 'amarillo', 'rojo']:
         raise ValueError("severity_level debe ser 'verde', 'amarillo', 'rojo' o None.")
@@ -38,7 +41,10 @@ def check_vibration_severity(
     thresholds: Dict[str, Dict[str, float]] = {"GE-DE": {}, "GE-NDE": {}, "T": {}}
     for direction in ["GE-DE", "GE-NDE", "T"]:
         # Iniciar con los valores predeterminados
-        thresholds[direction] = {key: float(value) for key, value in DEFAULT_ACTION_LIMITS[machine_type][direction].items()}
+        thresholds[direction] = {
+            key: float(value)
+            for key, value in DEFAULT_ACTION_LIMITS[machine_type][direction].items()
+        }
 
         # Si hay umbrales personalizados, aplicarlos
         if custom_thresholds and direction in custom_thresholds:
@@ -50,9 +56,12 @@ def check_vibration_severity(
             else:
                 # Modo específico: solo se ajusta el umbral del color seleccionado
                 if severity_level in custom_thresholds[direction]:
-                    thresholds[direction][severity_level] = custom_thresholds[direction][severity_level]
+                    thresholds[direction][severity_level] = (
+                        custom_thresholds[direction][severity_level]
+                    )
 
-    # Mapeo por defecto: CLE*, CS*, C1* a GE-NDE; CLA*, CI*, C2* a GE-DE; CT* a T; otros a desconocido
+    # Mapeo por defecto:
+    # CLE*, CS*, C1* -> GE-NDE; CLA*, CI*, C2*, CG* -> GE-DE; CT* -> T; otros -> desconocido
     mapping = {}
     for col in max_values.keys():
         if col.startswith(('CLE', 'CS', 'C1')):
@@ -78,7 +87,9 @@ def check_vibration_severity(
         if severity_level == 'verde':
             severity_results[col] = 'verde' if value <= limit_verde else 'no cumple'
         elif severity_level == 'amarillo':
-            severity_results[col] = 'amarillo' if limit_verde < value <= limit_amarillo else 'no cumple'
+            severity_results[col] = (
+                'amarillo' if limit_verde < value <= limit_amarillo else 'no cumple'
+            )
         elif severity_level == 'rojo':
             severity_results[col] = 'rojo' if value > limit_rojo else 'no cumple'
         else:  # Clasificación general
@@ -112,7 +123,8 @@ if __name__ == "__main__":
     }
     result_all = check_vibration_severity(max_values, machine_type, None, custom_thresholds_all)
     print("Evaluación con todos los umbrales ajustados:", result_all)
-    # Salida esperada: {'CLEX': 'verde', 'CSL': 'verde', 'CLAX': 'verde', 'CIP': 'verde', 'CTP': 'verde'}
+    # Salida esperada: {'CLEX': 'verde', 'CSL': 'verde', 'CLAX': 'verde',
+    #                    'CIP': 'verde', 'CTP': 'verde'}
 
     # 2. Modo específico: ajustar solo el umbral de 'verde'
     print("\n=== Modo Específico (severity_level='verde') ===")
@@ -121,9 +133,13 @@ if __name__ == "__main__":
         "GE-NDE": {"verde": 25.0},
         "T": {"verde": 40.0}
     }
-    result_verde = check_vibration_severity(max_values, machine_type, 'verde', custom_thresholds_verde)
+    result_verde = check_vibration_severity(
+        max_values, machine_type, 'verde', custom_thresholds_verde
+    )
     print("Evaluación solo ajustando 'verde':", result_verde)
-    # Salida esperada: {'CLEX': 'no cumple', 'CSL': 'no cumple', 'CLAX': 'no cumple', 'CIP': 'no cumple', 'CTP': 'no cumple'}
+    # Salida esperada: 
+    # {'CLEX': 'no cumple', 'CSL': 'no cumple', 
+    # 'CLAX': 'no cumple', 'CIP': 'no cumple', 'CTP': 'no cumple'}
 
     # 3. Modo específico: ajustar solo el umbral de 'amarillo'
     print("\n=== Modo Específico (severity_level='amarillo') ===")
@@ -132,6 +148,13 @@ if __name__ == "__main__":
         "GE-NDE": {"amarillo": 110.0},
         "T": {"amarillo": 110.0}
     }
-    result_amarillo = check_vibration_severity(max_values, machine_type, 'amarillo', custom_thresholds_amarillo)
+    result_amarillo = check_vibration_severity(
+        max_values, 
+        machine_type, 
+        'amarillo', 
+        custom_thresholds_amarillo
+        )
     print("Evaluación solo ajustando 'amarillo':", result_amarillo)
-    # Salida esperada: {'CLEX': 'no cumple', 'CSL': 'no cumple', 'CLAX': 'no cumple', 'CIP': 'no cumple', 'CTP': 'no cumple'}
+    # Salida esperada: 
+    # {'CLEX': 'no cumple', 'CSL': 'no cumple', 
+    # 'CLAX': 'no cumple', 'CIP': 'no cumple', 'CTP': 'no cumple'}

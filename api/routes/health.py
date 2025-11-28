@@ -1,8 +1,8 @@
 import mlflow
 from fastapi import APIRouter
-from src.models.predict import TurbinePredictor
 
 from configs.config import settings
+from src.models.turb_predictor import TurbinePredictor
 
 router = APIRouter()
 mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
