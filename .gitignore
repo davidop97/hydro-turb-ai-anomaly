@@ -229,3 +229,20 @@ outputs/
 # OS
 .DS_Store
 Thumbs.db
+
+#cache 
+cache/
+*.cache
+logs/
+*.log
+temp/
+*.tmp
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.class
+*.orig
+*.rej
+*.bak
+*.old
