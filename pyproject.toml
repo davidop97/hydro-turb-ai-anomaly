@@ -2,7 +2,7 @@
 name = "hydro-turb-ai-anomaly"
 version = "0.1.0"
 description = "Sistema de diagnóstico de turbinas usando ML"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 authors = [
     {name = "David Oliva Patiño", email = "daolivap@eafit.edu.co"}
 ]
