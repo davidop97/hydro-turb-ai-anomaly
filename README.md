@@ -83,7 +83,6 @@ Este proyecto implementa un **sistema completo de machine learning** para la det
     │                    │                    │
 ┌───▼────┐          ┌────▼────┐          ┌───▼────┐
 │ Linear │          │ Logistic │          │  GMM   │
-│ (best) │          │          │          │        │
 └───┬────┘          └────┬────┘          └───┬────┘
     │                    │                    │
     └────────────────────┼────────────────────┘
@@ -121,14 +120,12 @@ hydro-turb-ai-anomaly/
 │   │
 │   ├── 📂 preprocessing/
 │   │   ├── eda_loader.py                # Carga y EDA inicial
-│   │   ├── pipeline.py                  # Pipeline de preprocesamiento
-│   │   └── utils.py                     # Utilidades
+│   │   └── pipeline.py                     # Utilidades
 │   │
 │   └── 📂 visualization/
 │       ├── charts.py                    # Gráficos matplotlib
 │       ├── eda_plots.py                 # Plots exploratorios
-│       ├── plots.py                     # Plots adicionales
-│       └── config.py                    # Configuración de estilos
+│       └── plots.py                    # Figuras adicionales
 │
 ├── 📂 workflows/
 │   ├── eda.py                           # Análisis exploratorio de datos
@@ -140,8 +137,7 @@ hydro-turb-ai-anomaly/
 │   └── __init__.py
 │
 ├── 📂 configs/
-│   ├── config.py                        # Configuración global
-│   └── settings.py                      # Parámetros ajustables
+│   └── config.py                      # Parámetros ajustables
 │
 ├── 📂 app/
 │   └── main.py                          # Interfaz Streamlit
@@ -162,8 +158,8 @@ hydro-turb-ai-anomaly/
 │       ├── classifier_best.pkl
 │       └── best_classifier_metadata.json
 │
-├── 📂 mlruns/                           # MLflow experiments
-├── 📂 mlartifacts/                      # MLflow artifacts
+├── 📂 mlruns/                           # MLflow experiments (opcional)
+├── 📂 mlartifacts/                      # MLflow artifacts (opcional)
 │
 ├── 📂 .github/workflows/
 │   ├── preprocess_on_data_change.yml    # Trigger preprocesamiento
